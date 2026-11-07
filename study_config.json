@@ -1,0 +1,16 @@
+{
+  "manifest": "data/mendeley_teeth_v1/manifest_frozen.csv",
+  "output_dir": "runs/mendeley_tele_dentistry_v1",
+  "require_mps": true,
+  "image_size": 512,
+  "batch_size": 8,
+  "epochs": 35,
+  "patience": 7,
+  "learning_rate": 0.0001,
+  "weight_decay": 0.0001,
+  "folds": 5,
+  "seed": 42,
+  "encoder_weights": "imagenet",
+  "noise_repeats": 3,
+  "bootstrap_samples": 2000
+}

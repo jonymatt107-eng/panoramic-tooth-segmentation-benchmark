@@ -1,0 +1,12 @@
+torch>=2.5,<3
+torchvision>=0.20,<1
+segmentation-models-pytorch==0.5.0
+albumentations>=2.0,<3
+opencv-python>=4.10,<6
+scikit-learn>=1.5,<2
+pandas>=2.2,<4
+matplotlib>=3.9,<4
+seaborn>=0.13,<1
+tqdm>=4.66,<5
+numpy>=1.26,<3
+pytest>=8,<10

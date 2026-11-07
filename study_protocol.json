@@ -1,0 +1,28 @@
+{
+  "endpoint": "whole-tooth foreground segmentation",
+  "acquisition": "secondary-capture smartphone photographs of panoramic radiographs",
+  "intended_workflow": "preprocessing for low-resource tele-dentistry triage; no clinical triage validation",
+  "development_images": 263,
+  "heldout_test_images": 66,
+  "folds": 5,
+  "epochs_max": 35,
+  "patience": 7,
+  "selection": "maximum validation patient-macro hard Dice",
+  "probability_threshold": 0.5,
+  "preprocessing": "LongestMaxSize(512) plus centered PadIfNeeded(512,512), zero padding",
+  "padding_excluded_from": [
+    "BCE",
+    "soft Dice",
+    "confusion metrics",
+    "Grad-CAM scalar target"
+  ],
+  "device_required": "mps",
+  "precision": "float32",
+  "batch_size": 8,
+  "encoder_weights": "ImageNet",
+  "evaluation_fold_aggregation": "average per-image scores across selected fold models; no inference ensemble",
+  "noise_repetitions": 3,
+  "latency_warmup": 100,
+  "latency_iterations": 200,
+  "bootstrap_patients": 2000
+}

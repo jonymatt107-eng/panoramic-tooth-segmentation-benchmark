@@ -1,0 +1,16 @@
+{
+  "manifest": "data/manifest.csv",
+  "output_dir": "runs/main",
+  "image_size": 512,
+  "batch_size": 8,
+  "learning_rate": 0.0001,
+  "weight_decay": 0.0001,
+  "seed": 42,
+  "folds": 5,
+  "patience": 10,
+  "epochs": 100,
+  "test_fraction": 0.2,
+  "encoder_weights": "imagenet",
+  "noise_repeats": 3,
+  "bootstrap_samples": 2000
+}
