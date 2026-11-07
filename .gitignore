@@ -1,0 +1,12 @@
+data/
+runs/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pth
+*.aux
+*.log
+*.out
+.DS_Store
+.env
