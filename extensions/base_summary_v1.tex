@@ -1,0 +1,29 @@
+\documentclass[11pt]{article}
+\usepackage[margin=.8in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,booktabs,graphicx,hyperref}
+\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue}
+\setlength{\emergencystretch}{3em}
+\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue}
+\setlength{\emergencystretch}{3em}
+\input{results.tex}
+\title{Secondary-capture panoramic whole-tooth segmentation: empirical summary}
+\author{Apple Silicon MPS benchmark}
+\date{}
+\begin{document}\maketitle
+\noindent\textbf{Scope.} Mendeley version 1, 329 smartphone-photographed panoramic radiographs; whole-tooth foreground masks. Intended application: preprocessing in low-resource tele-dentistry triage workflows. Clinical triage or diagnostic performance was not evaluated.
+\paragraph{Frozen protocol.} 263 development images/publisher-supported patient groups, five grouped folds, 66 held-out images/groups, three architectures. ImageNet encoders; aspect-preserving longest-side resize with matched zero padding to $512^2$; padding excluded from loss/metrics; batch eight; FP32 MPS; at most 35 epochs; patience seven on validation Dice. No external validation cohort. Patient identities rely on the publisher's one-image-per-patient statement.
+\paragraph{Clean benchmark.} Descriptive 95\% patient-bootstrap intervals are conditional on the fitted models. Forward timings exclude decoding, preprocessing and transfer.
+\begin{center}\resizebox{\textwidth}{!}{\input{table1.tex}}\end{center}
+\paragraph{Observed trade-off.} ResNet-34 U-Net had the highest clean overlap and the smallest mean Dice decrease in every maximum-severity corruption family. EfficientNet-B0 had the lowest measured forward latency. The smallest model, SegFormer, was slower on this MPS implementation.
+\paragraph{Maximum-severity degradation.} Dice differences are corrupted minus clean; negative changes indicate deterioration. Gaussian and motion blur are distinct conditions.
+\begin{center}\resizebox{\textwidth}{!}{\input{table2.tex}}\end{center}
+\begin{center}\includegraphics[width=\textwidth]{figure1_decay.png}\end{center}
+\begin{center}\includegraphics[width=.8\textwidth]{figure2_pareto.png}\end{center}
+\noindent\small Dice axis zoomed to 0.86--0.92; full possible range 0--1. Timing: Apple M5 Pro, 24 GB unified memory, FP32 MPS; 100 warm-up and 200 measured iterations.\normalsize
+
+\paragraph{Prespecified qualitative comparison.} First sorted held-out identifier, fold zero; cyan prediction contours and positive-logit Grad-CAM. All five examples are provided separately.
+\begin{center}\includegraphics[width=\textwidth]{gradcam_example.png}\end{center}
+\paragraph{Interpretation limits.} One secondary-capture source; no external cohort, independent specialist re-adjudication, prospective triage endpoint or physical calibration of simulated degradation. No entirely tooth-free images. Correlated fold models and one seed family do not establish training-sampling uncertainty. Institutional ethics/reuse obligations and author declarations remain for investigators to verify before submission.
+\paragraph{Source.} Chowdhury et al., Dental Panoramic Radiography Dataset for Pixel level Semantic Segmentation of Teeth, Mendeley Data V1, 2026, CC BY 4.0. \url{https://doi.org/10.17632/jrz4nj82zv.1}.
+\end{document}

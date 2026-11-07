@@ -1,0 +1,135 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,amsmath,booktabs,graphicx,hyperref}
+\setlength{\emergencystretch}{3em}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+\IfFileExists{results.tex}{\input{results.tex}}{}
+\providecommand{\BaselineDice}{not yet measured}
+\providecommand{\CNNDice}{not yet measured}
+\providecommand{\TransformerDice}{not yet measured}
+\providecommand{\BaselineLatency}{not yet measured}
+\providecommand{\CNNLatency}{not yet measured}
+\providecommand{\TransformerLatency}{not yet measured}
+\title{Whole-tooth segmentation on smartphone-photographed panoramic radiographs for low-resource tele-dentistry triage: patient-separated robustness and efficiency benchmarking}
+\author{Computational benchmark report\\[3pt]\small Author and affiliation details to be supplied before submission}
+\date{}
+\begin{document}
+\maketitle
+\begin{abstract}
+\noindent\textbf{Background:} Low-resource tele-dentistry workflows may receive secondary captures of panoramic radiographs rather than original detector exports. Whole-tooth segmentation is a potential image-processing component of these workflows; robustness to additional image degradation and computational cost remain practical concerns.\\
+\textbf{Methods:} We evaluate U-Net/ResNet-34, U-Net/EfficientNet-B0, and SegFormer/MiT-B0 on 329 publicly released, smartphone-photographed panoramic radiographs with tooth-region masks. A frozen set of 66 images is held out; five-fold patient-grouped cross-validation uses the remaining 263 images. Longest-side resizing and matched zero padding preserve panoramic aspect ratio in a $512\times512$ canvas. Artificial padding is excluded from loss and evaluation. Training uses ImageNet encoders, FP32 MPS execution, batch eight, a 35-epoch cap, and patience seven on validation Dice. Noise, Gaussian and motion blur, intensity attenuation, and resolution loss are evaluated in paired held-out stress tests.\\
+\textbf{Results:} Clean patient-macro Dice is \BaselineDice{}, \CNNDice{}, and \TransformerDice{} for the baseline, lightweight convolutional model, and transformer, respectively. Corresponding forward latencies are \BaselineLatency{}, \CNNLatency{}, and \TransformerLatency{} ms/image. Intervals are descriptive 95\% patient-bootstrap intervals conditional on fitted models.\\
+\textbf{Conclusion:} ResNet-34 U-Net achieved the highest clean Dice and the smallest mean Dice decrease in each maximum-severity corruption family. EfficientNet-B0 had the lowest measured forward latency. These results do not establish clinical triage accuracy, deployment safety, or external-domain generalization.
+\end{abstract}
+
+\section{Introduction}
+Tele-dentistry can require image analysis under restricted acquisition and computing resources. In this setting, a smartphone photograph of an existing panoramic radiograph is a secondary capture: it can contain photographic texture, illumination variation, and geometric or contrast changes in addition to those of the original radiographic acquisition. Algorithms evaluated only on direct digital exports may therefore address a different image distribution. The present study focuses specifically on whole-tooth foreground segmentation in these secondary captures as a potential preprocessing component for low-resource tele-dentistry triage workflows. It does not attempt to infer a triage decision or a disease diagnosis from the tooth mask.
+
+Encoder--decoder convolutional networks, including U-Net, offer an established biomedical segmentation baseline \cite{unet}. ResNet-34 provides a conventional residual encoder \cite{resnet}, whereas EfficientNet-B0 represents a smaller convolutional alternative \cite{efficientnet}. SegFormer combines hierarchical transformer features and a lightweight decoder \cite{segformer}. Their practical trade-offs on a common Apple Silicon system can differ from parameter counts alone. This is a comparison of complete segmentation systems; it cannot isolate attention as the sole cause of an observed difference because encoders, decoders, capacity, and pretraining histories also differ.
+
+We compare clean overlap, sensitivity to controlled additional degradations, and single-image forward latency using identical frozen patient partitions. Patient-macro clean Dice is the primary endpoint. Paired Dice changes at maximum corruption severity are prespecified robustness endpoints; remaining severities and confusion metrics are descriptive secondary analyses. Simulated perturbations enable controlled within-image comparisons, while real domain shift requires an independent site-, device-, or time-separated cohort. No such external cohort is available in this study. Reporting follows the transparency principles of CLAIM 2024 \cite{claim}.
+
+\section{Methods}
+\subsection{Dataset, target and grouping evidence}
+We use version 1 of the Dental Panoramic Radiography Dataset for Pixel level Semantic Segmentation of Teeth, DOI 10.17632/jrz4nj82zv.1, released under CC BY 4.0 by Chowdhury and colleagues \cite{dataset}. The publisher reports 329 panoramic radiographs from 329 individual patients, acquired as smartphone photographs of radiographs in Sylhet, Bangladesh. The archive README identifies Pioneer OPG X ray Centre and describes manual annotations with professional dental guidance. Independent re-adjudication, complete demographic distributions, the smartphone model, and patient-registry linkage were not available for this benchmark. These omissions limit clinical interpretation.
+
+The binary target is the union of annotated tooth regions, with 0 denoting background and 1 denoting teeth. Tooth numbering, disease status, caries-lesion extent and clinical urgency are not targets. All 329 source masks were single-channel uint8 images containing exactly 0 and 1. Every image/mask pair had equal native dimensions. All masks contained tooth foreground; none was empty or full-frame. Foreground fractions ranged from 2.76\% to 18.89\%, with median 12.50\%. Thus, the cohort cannot estimate false-positive behavior on entirely tooth-free images.
+
+Every source image has a stable anonymous image key. Patient-group keys use the source basename before the Roboflow export hash; export variants would remain in the same group. All canonical source basenames are unique. This grouping rests on the publisher's explicit one-image-per-patient statement, rather than independent recovery of clinical identity. Exact file and decoded-pixel duplicate checks found no identical images; near-duplicate exclusion is not established by these checks. Source archive SHA-256, original filenames, image/mask hashes and grouping provenance are recorded. No metadata beyond the supplied deidentified release is inferred from the image content.
+
+\subsection{Frozen patient-separated protocol}
+The inspected seed-42 proposal was frozen without changing membership: 263 development images/groups and 66 held-out test images/groups. Five GroupKFold assignments are retained within development data. Three folds contain 53 validation groups and two contain 52; their training sets contain 210 or 211 groups. No patient group crosses development/test partitions or development training/validation boundaries. The test identities and manifest digest are stored in a split-freeze receipt.
+
+One model is trained for each development fold and architecture. Checkpoints are selected exclusively by the maximum validation patient-macro hard Dice at threshold 0.5. Ties do not replace the earlier checkpoint; seven consecutive non-improving epochs trigger stopping. The maximum is 35 epochs. The same held-out patients are evaluated using all five selected fold models. Reported metrics average model-specific scores across folds rather than averaging prediction probabilities. The five models share training observations and are not independent clinical replicates. No test-driven threshold, architecture hyperparameter or augmentation tuning is performed. The study is exploratory; no formal sample-size adequacy or confirmatory power claim is made.
+
+\subsection{Aspect-preserving preprocessing and padding validity}
+Albumentations LongestMaxSize scales the longest side to 512 pixels, followed by centered PadIfNeeded to $512\times512$. Images use bilinear interpolation; masks use nearest-neighbor interpolation. Zero padding is applied identically to the image, target mask and a binary valid-content map. RGB normalization uses ImageNet channel means $(0.485,0.456,0.406)$ and standard deviations $(0.229,0.224,0.225)$. Native images are preserved in the dataset; resampling occurs only in the execution pipeline. Letterboxing avoids anisotropic panoramic squashing, subject to integer-pixel rounding.
+
+Training uses horizontal flips, limited shift/scale/rotation, brightness/contrast changes and elastic deformation with the same prespecified probabilities and limits for all models: respectively 0.5; 0.5 with shift 0.05, scale 0.10 and rotation $10^\circ$; 0.3; and 0.2 with $\alpha=1$, $\sigma=50$. Longest-side resizing precedes augmentation and final padding. Geometric transforms also act on the mask and valid-content map. Their clinical plausibility for secondary captures is an assumption rather than a validated simulation of anatomy. Validation and test preprocessing omit augmentation. Automated tests verify exact mask/content-map padding alignment and exclusion of border pixels from loss and confusion counts.
+
+\subsection{Models, optimization and execution}
+The architectures are U-Net/ResNet-34, U-Net/EfficientNet-B0, and SegFormer/MiT-B0 from segmentation-models-pytorch 0.5.0. Each accepts three channels and predicts one binary logit per canvas pixel. Encoders use ImageNet initialization; decoders are initialized randomly and all layers train. AdamW uses learning rate $10^{-4}$ and weight decay $10^{-4}$; cosine annealing spans the 35-epoch cap. Batch size is eight and precision is FP32. Base seed is 42 and fold initialization uses $42+f$. Python, NumPy, PyTorch and the augmentation generator are seeded; data loading uses one process and one CPU thread.
+
+For valid-content indicators $v_j$, probabilities $p_j=\sigma(z_j)$ and labels $y_j$, the per-image soft Dice loss is
+\[
+L_D=1-\frac{2\sum_j v_jp_jy_j+10^{-6}}{\sum_jv_jp_j+\sum_jv_jy_j+10^{-6}}.
+\]
+The BCE component is evaluated with stable logit-based binary cross-entropy and averaged over valid pixels only. The training loss is $0.5L_{\rm BCE}+0.5L_D$, averaged across images. Validation selection uses hard Dice, distinct from the optimized soft loss. All data in this release have one image per publisher-supported patient group, so image and patient weighting coincide at validation.
+
+The study requires \texttt{device('mps')} and fails instead of accepting CPU fallback. Deterministic algorithms are requested strictly. A compatibility implementation preserves native SegFormer bilinear forward interpolation while computing its MPS gradient using the separable interpolation adjoint $W_h^T G W_w$, avoiding a nondeterministic scatter-accumulation backward kernel. MiT key/value extraction uses equivalent unbind. Tests compare output, gradient and checkpoint-key equivalence. No gradient tensors are transferred to CPU by this compatibility implementation. Reproducibility remains conditional on software and hardware versions; cross-platform bitwise identity is not claimed \cite{torch}.
+
+\subsection{Held-out perturbations and efficiency}
+All perturbations operate on the resized panoramic content rectangle before normalization. The zero-padded border is preserved and excluded from metrics. The reference geometry remains unchanged. Clean input is severity zero; three progressively specified tiers follow:
+\begin{enumerate}
+\item Additive Gaussian intensity noise, $\sigma=0.01,0.05,0.10$, clipped to $[0,1]$. Three seeded realizations are averaged. Draws are matched across architectures and fold models and scaled across severity.
+\item Gaussian blur with widths 3, 5, 7 and OpenCV's automatic sigma; separately, normalized horizontal motion kernels of the same widths.
+\item Joint intensity/contrast attenuation $x'=cx^\gamma$, with $(\gamma,c)=(1.25,0.9),(1.75,0.7),(2.5,0.5)$.
+\item Bilinear reduction to 75\%, 50\%, and 25\% of content dimensions followed by restoration. The content width is 512 before reduction, giving widths 384, 256 and 128 while preserving the content aspect ratio up to rounding.
+\end{enumerate}
+These are digital secondary-capture perturbations, not calibrated radiographic sensor, dose, photographic exposure or physical motion models. The acquisition already contains natural photographic variability; simulated perturbations add to that baseline.
+
+Single-image forward latency uses a resident $1\times3\times512\times512$ FP32 tensor, 100 warm-up forwards and 200 timed forwards per selected model. MPS synchronization brackets each timed forward. Mean, SD, median and 95th percentile are recorded; FPS is $1000/\overline{t}_{\rm ms}$. Tables average fold-specific mean latencies. Decoding, letterboxing, transfer, postprocessing and explanation are excluded. Timing is a single-session hardware measurement, not sustained clinical throughput, and thermal/power conditions are not experimentally controlled. Execution used an Apple M5 Pro MacBook Pro with 24 GB unified memory and macOS 26.6.1, Python 3.14.7, PyTorch 2.15.0, torchvision 0.29.2, and Albumentations 2.0.8. Full package and hardware metadata are archived.
+
+\subsection{Statistics and qualitative explanations}
+Metrics are Dice, IoU, pixel sensitivity, specificity and precision, computed only on valid content. Both-empty Dice/IoU are one; undefined confusion ratios are missing. Noise realizations are averaged within image/fold, images within group, then fold metrics within group. Patients receive equal final weight. Descriptive percentile 95\% intervals use 2,000 patient bootstrap resamples, conditional on trained models. Corruption changes and architecture differences use matched patients. Intervals do not include training-set/seed, annotation or site-sampling uncertainty; no multiplicity-adjusted hypothesis test is claimed. Negative corrupted-minus-clean Dice changes indicate degradation.
+
+Grad-CAM \cite{gradcam} targets the mean foreground logit within the detached predicted mask restricted to valid content, or all valid content when prediction is empty. Gradients weight the deepest spatial encoder channels. Rectified maps are upsampled, masked and normalized per image. Five panels compare the letterboxed image, reference mask and predictions/heatmaps from the three architectures. Selection uses the first five sorted held-out IDs and fold zero, without selecting apparent successes. These are qualitative attributions, not evidence of faithful biological reasoning.
+
+\section{Results}
+\IfFileExists{empirical_results.tex}{\input{empirical_results.tex}}{Real-data experiments are in progress; no result is imputed.}
+\begin{table}[htbp]\centering
+\caption{Clean held-out metrics: patient means and descriptive 95\% bootstrap intervals. Parameter count is in millions; latency is batch-one forward ms/image.}\label{tab:clean}
+\IfFileExists{table1.tex}{\resizebox{\textwidth}{!}{\input{table1.tex}}}{Awaiting completed evaluation.}
+\end{table}
+\begin{table}[htbp]\centering
+\caption{Maximum-severity Dice change (corrupted minus clean), with paired descriptive 95\% intervals. Widths refer to the valid panoramic content, with padding preserved.}\label{tab:robust}
+\IfFileExists{table2.tex}{\resizebox{\textwidth}{!}{\input{table2.tex}}}{Awaiting completed evaluation.}
+\end{table}
+\begin{figure}[htbp]\centering
+\IfFileExists{figure1_decay.png}{\includegraphics[width=\textwidth]{figure1_decay.png}}{Awaiting completed evaluation.}
+\caption{Dice across clean and corrupted inputs. Shading denotes patient-bootstrap intervals conditional on fitted models.}\label{fig:decay}
+\end{figure}
+\begin{figure}[htbp]\centering
+\IfFileExists{figure2_pareto.png}{\includegraphics[width=.85\textwidth]{figure2_pareto.png}}{Awaiting completed evaluation.}
+\caption{Clean Dice and forward latency, with the descriptive point-estimate Pareto frontier. The Dice axis is zoomed to 0.86--0.92 to display point differences and intervals; its full possible range is 0--1.}\label{fig:pareto}
+\end{figure}
+\begin{figure}[htbp]\centering
+\IfFileExists{gradcam_example.png}{\includegraphics[width=\textwidth]{gradcam_example.png}}{Awaiting completed evaluation.}
+\caption{Prespecified held-out example, fold zero. Heatmaps visualize positive-logit attribution; cyan contours denote predictions. All five prespecified examples are supplied separately.}\label{fig:cam}
+\end{figure}
+
+\section{Discussion}
+Within this single-source evaluation, ResNet-34 U-Net had the highest clean Dice, \BaselineDice{}, and the smallest mean decrease in all five maximum-severity corruption subconditions. EfficientNet-B0 used 6.25 million parameters versus 24.44 million for the baseline, with the lowest measured forward latency (\CNNLatency{} versus \BaselineLatency{} ms/image), but lower clean overlap. SegFormer had the fewest parameters (3.71 million) and the longest measured latency (\TransformerLatency{} ms/image). These observations describe the present implementations and device, rather than a general claim about convolution or attention.
+
+Resolution loss produced the largest mean Dice decrease for the baseline (0.055) and EfficientNet (0.119), whereas horizontal motion blur produced the largest decrease for SegFormer (0.099). Relative retention therefore differed by degradation family. Gaussian noise at the maximum prespecified level reduced Dice by 0.014, 0.048 and 0.017 for the baseline, EfficientNet and SegFormer, respectively. These comparisons are descriptive and their clinical importance has not been established.
+
+This experiment measures the behavior of three complete segmentation systems on a specific secondary-capture dataset and Apple Silicon execution stack. Its application is a candidate preprocessing stage for low-resource tele-dentistry triage workflows. It does not evaluate triage categories, referral decisions, clinical urgency, diagnostic accuracy or outcomes. Even high tooth-mask overlap cannot establish that an image is diagnostically adequate or that a downstream referral recommendation is safe.
+
+Convolutional locality and hierarchical attention offer plausible explanations for differential degradation sensitivity. Blur or resolution loss may suppress fine boundary information, while spatial context may partly compensate. These are hypotheses rather than causal conclusions: model capacity, decoder design and initialization differ. Matched-capacity ablations, multi-seed experiments and feature-frequency analyses would be needed to attribute behavior specifically to convolution or attention. Parameter count also need not predict MPS latency because operator implementation and memory traffic differ.
+
+The important data limitation is secondary capture. Photographs of radiographs include display/print texture, illumination variation and potential perspective effects; these differ from direct detector exports and from other phones or tele-dentistry settings. The corruption grid is deliberately reproducible but not physically calibrated. It omits compound artifacts, compression, glare, perspective changes and uncontrolled motion. The sample is small and from one source, with limited demographic and acquisition metadata. Publisher-supported grouping is explicit but cannot be independently audited against a clinical registry. No external cohort, specialist re-adjudication or prospective workflow study is provided. All images contain teeth, limiting negative-image assessment.
+
+Patient bootstrap intervals condition on fitted models; fold models are correlated and one base-seed family does not establish seed stability. The 35-epoch budget is a common compute constraint, not proof of equal convergence. Early stopping on a small validation fold can favor different optimization trajectories. The held-out set must remain untouched by later protocol tuning. Single-device timing excludes end-to-end preprocessing and sustained thermal variation. Peak unified-memory consumption and battery use are not benchmark endpoints.
+
+Clinical progression would require an independently acquired secondary-capture cohort, reliable patient linkage, acquisition-stratified analyses, expert mask review and predefined downstream triage outcomes. This study supplies engineering measurements to inform that work, rather than validating a clinical triage system.
+
+\section{Conclusion}
+Whole-tooth segmentation on smartphone-photographed panoramic radiographs can be compared reproducibly through patient-separated testing, aspect-preserving preprocessing and controlled digital stress tests. The baseline achieved the highest overlap and retained the most Dice under the specified maximum-severity perturbations, while EfficientNet provided the lowest measured forward latency with fewer parameters. These are implementation-specific trade-offs for a potential low-resource tele-dentistry preprocessing component. External-domain validity, clinical utility and safe triage performance remain untested.
+
+\section*{Data, reproducibility and declarations}
+The public dataset is cited below and must retain CC BY 4.0 attribution. Original data, checksum, candidate/frozen manifests, source hashes, fold histories, checkpoints, environment reports and per-image evaluation records are preserved locally. Repository/archive identifiers and author affiliations must be supplied before journal submission. Code uses seed 42, five development folds, batch eight and FP32 MPS. The empirical report describes execution evidence without inventing unavailable clinical metadata.
+
+This is secondary analysis of a publicly released deidentified dataset; no new participants were enrolled by this computational benchmark. Consent, original ethics procedures, reuse eligibility and any institutional review or exemption requirements must be verified by the submitting investigators. Public availability alone is not asserted to establish exemption. Authors must complete funding, competing-interest and contribution declarations and disclose AI-assisted code/text generation according to journal policy. No clinical deployment occurred.
+
+\begin{thebibliography}{9}\small\setlength{\itemsep}{2pt}
+\bibitem{dataset} Chowdhury ASMR, Awsaf SA, Rahman A, Rahaman MJ. Dental Panoramic Radiography Dataset for Pixel level Semantic Segmentation of Teeth. Mendeley Data, V1. 2026. \url{https://doi.org/10.17632/jrz4nj82zv.1}.
+\bibitem{unet} Ronneberger O, Fischer P, Brox T. U-Net: Convolutional Networks for Biomedical Image Segmentation. MICCAI. 2015. \url{https://arxiv.org/abs/1505.04597}.
+\bibitem{resnet} He K et al. Deep Residual Learning for Image Recognition. CVPR. 2016. \url{https://arxiv.org/abs/1512.03385}.
+\bibitem{efficientnet} Tan M, Le QV. EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks. ICML. 2019. \url{https://arxiv.org/abs/1905.11946}.
+\bibitem{segformer} Xie E et al. SegFormer: Simple and Efficient Design for Semantic Segmentation with Transformers. NeurIPS. 2021. \url{https://arxiv.org/abs/2105.15203}.
+\bibitem{gradcam} Selvaraju RR et al. Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization. ICCV. 2017. \url{https://arxiv.org/abs/1610.02391}.
+\bibitem{claim} Tejani AS et al. Checklist for Artificial Intelligence in Medical Imaging (CLAIM): 2024 Update. Radiology: Artificial Intelligence. 2024;6:e240300. \url{https://doi.org/10.1148/ryai.240300}.
+\bibitem{torch} PyTorch contributors. Reproducibility and MPS backend. \url{https://docs.pytorch.org/docs/stable/notes/randomness.html}; \url{https://docs.pytorch.org/docs/stable/mps.html}.
+\end{thebibliography}
+\end{document}
