@@ -154,4 +154,8 @@ A failed process can skip fully completed folds and restart only the interrupted
 
 Jonathan Matta is the sole author and an independent researcher with no institutional affiliation or sponsorship. Correspondence: jonymatt.107@gmail.com. No college, university or faculty advisor is affiliated with this work. No formal ethics approval or exemption has been obtained or asserted.
 
-Public source: https://github.com/jonymatt107-eng/panoramic-tooth-segmentation-benchmark . No archival DOI has been minted. Raw data remain at https://doi.org/10.17632/jrz4nj82zv.1 under CC BY 4.0. The repository excludes raw images, local run outputs and trained weights. The separately supplied weight archive is not publicly deposited here. The extension quantifies segmentation omissions and boundary errors, not clinical triage utility.
+Public source: https://github.com/jonymatt107-eng/panoramic-tooth-segmentation-benchmark . Companion archive DOI: https://doi.org/10.5281/zenodo.24027462 (reserved before publication). Raw data remain at https://doi.org/10.17632/jrz4nj82zv.1 under CC BY 4.0. The repository excludes raw images, local run outputs and trained weights. The separately supplied weight archive is not publicly deposited here. The extension quantifies segmentation omissions and boundary errors, not clinical triage utility.
+
+## Version 1.0.0 archival release
+
+Software release: https://github.com/jonymatt107-eng/panoramic-tooth-segmentation-benchmark/releases/tag/v1.0.0 . Companion results/weights DOI: https://doi.org/10.5281/zenodo.24027462 . Original software is MIT licensed; reports and dataset-derived panels retain CC BY 4.0 attribution (see RELEASE_LICENSES.md). The independent author assesses this secondary, de-identified analysis as NHSR under 45 CFR 46.102(e); no formal review-body determination is claimed. DOI registration occurs when the Zenodo record is published.
